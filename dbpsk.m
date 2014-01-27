@@ -1,8 +1,3 @@
-%Open file 
-fid = fopen('testdata', 'r');
-%Initialize fRead for reading lines from text
-fRead = '%f %f';
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%Module 1%%%%%%%%%%%%%%%%%%%%
 %Removing the carrier frequency difference%
@@ -14,9 +9,11 @@ d_freq = 0;
 d_phase = 0;
 derotatedRealInput = 100 : 1; %This creates an empty array
 derotatedImaginaryInput = 100 : 1; %This creates an empty array
+%Open input file 
+fid = fopen('testdata', 'r');
 while ~feof(fid)
     %Read each sample
-    row = fscanf(fid, fRead, [2 1]);
+    row = fscanf(fid, '%f %f', [2 1]);
     
     if ~isempty(row)
         %Rotate the sample about the origin
@@ -35,7 +32,7 @@ while ~feof(fid)
     end
 end
 
-x = 1:1:rowCount-1;
-plot(x,derotatedRealInput);
-figure
-plot(x,derotatedImaginaryInput);
+%Open costasoutR for writing  
+fid1 = fopen('costasoutR', 'w');
+fprintf(fid1,'%f %f',derotatedRealInput);
+fclose(fid1);
