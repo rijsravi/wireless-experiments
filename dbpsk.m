@@ -32,7 +32,7 @@ while ~feof(testdata)
     end
 end
 
-%Open costasoutR for writing  
+Open costasoutR for writing  
 costasoutR_write = fopen('costasoutR', 'w');
 fprintf(costasoutR_write,'%f \n',derotatedRealInput);
 fclose(costasoutR_write);
@@ -41,73 +41,110 @@ fclose(costasoutR_write);
 %%%%%%%%%%%%%%%Module 2%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%Taking the samples%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-timingError = 0;
-decision_plus_one = 0;
-decision_minus_one = 0;
-sample_plus_one = 0;
-sample_minus_one = 0;
-counter = 0;
-readPosition = 10;
-sampleList = 100 : 1; %This creates an empty array
-sampleListActual = 100 : 1; %This creates an empty array
-sampleCounter = 1;
+
+index = 1;
+tempSamplesList = 100:1; %This creates an empty array
 %Open input file 
 costasoutR_read = fopen('costasoutR', 'r');
+%Read each sample and store it an array
 while ~feof(costasoutR_read)
-   %Read each sample
    sample = fscanf(costasoutR_read, '%f', [1,1]);
-   %Read first three samples to get started
-   if(counter < 3)
-       if(counter == 0)
-           sample_minus_one = sample(1,1);
-           if sample_minus_one > 0
-               decision_minus_one = 1;
-           else 
-               decision_minus_one = 0;
-           end
-           sampleList(sampleCounter) = decision_minus_one;
-       elseif(counter == 1)
-           if sample(1,1) > 0
-               decision = 1;
-           else 
-               decision = 0;
-           end
-           sampleList(sampleCounter) = decision;
-       elseif(counter == 2)
-           sample_plus_one = sample(1,1);
-           if sample_plus_one > 0
-               decision_plus_one = 1;
-           else 
-               decision_plus_one = 0;
-           end
-           sampleList(sampleCounter) = decision_plus_one;
-           %Calculate the timing error based on the M&M algorithm
-           timingError = floor((decision_minus_one - decision_plus_one)*sample + (sample_plus_one - sample_minus_one)*decision);
-           %Samples are taken every 10 microseconds
-           readPosition = readPosition + 10 + timingError;
-       end
-       sampleCounter = sampleCounter + 1;
+   if ~isempty(sample)
+       tempSamplesList(index) = sample(1,1);
+       index = index + 1;
    end
-   %Now continue with the rest of the samples
-   if(counter == readPosition)
-       %Make a decision on the bit value based on whether its negative or
-       %positive
-       if sample(1,1) > 0
-           decision = 1;
-       else 
-           decision = 0;
-       end
-       sampleList(sampleCounter) = decision;
-       sampleCounter = sampleCounter + 1;
-       %Calculate the timing error based on the M&M algorithm
-       timingError = floor((decision_minus_one - decision_plus_one)*sample(1,1) + (sample_plus_one - sample_minus_one)*decision);
-       %Samples are taken every 10 microseconds
-       readPosition = readPosition + 10 + timingError;
-   end
-   counter = counter + 1;
 end
+
+%Read first three samples to get started
+if tempSamplesList(1) > 0
+   dk_minus_one = 1;
+else 
+   dk_minus_one = 0;
+end
+
+if tempSamplesList(2) > 0
+   dk = 1;
+else 
+   dk = 0;
+end
+
+if tempSamplesList(3) > 0
+   dk_plus_one = 1;
+else 
+   dk_plus_one = 0;
+end
+
+%Calculate the timing error based on the M&M algorithm
+timingError = (dk_minus_one - dk_plus_one)*tempSamplesList(2) + (tempSamplesList(3) - tempSamplesList(1))*dk;
+%Indicates from which position we start reading the samples
+readPosition = 1000;
+%Samples are taken every 10 microseconds
+readPosition = readPosition + 10 + timingError;
+
+mmDecisionList = 100 : 1; %This creates an empty array
+mmDecisionSamplesList = 100 : 1; %This creates an empty array
+mmDecisionCounter = 1;
+%while(length(tempSamplesList) - readPosition > 9)
+while readPosition < 2000
+   %Check if the readPosition is a whole number first
+   if(readPosition - floor(readPosition) > 0)
+       x = readPosition;
+       x0 = floor(x);
+       x1 = floor(x) + 1;
+       y0 = tempSamplesList(x0);
+       y1 = tempSamplesList(x1);
+       %We need to find the sample by linear interpolation
+       mmDecisionSamplesList(mmDecisionCounter) = y0 + (y1 - y0) * ((x - x0)/(x1-x0));
+       
+       x = readPosition+(10+timingError);
+       x0 = floor(x);
+       x1 = floor(x) + 1;
+       y0 = tempSamplesList(x0);
+       y1 = tempSamplesList(x1);
+       sample_plus_one = y0 + (y1 - y0) * ((x - x0)/(x1-x0));
+       
+       x = readPosition-(10+timingError);
+       x0 = floor(x);
+       x1 = floor(x) + 1;
+       y0 = tempSamplesList(x0);
+       y1 = tempSamplesList(x1);
+       sample_minus_one = y0 + (y1 - y0) * ((x - x0)/(x1-x0));
+   else 
+       mmDecisionSamplesList(mmDecisionCounter) = tempSamplesList(readPosition);
+       sample_plus_one = tempSamplesList(readPosition+(10+timingError));
+       sample_minus_one = tempSamplesList(readPosition-(10+timingError));
+   end
+   
+   %Make a decision on the bit value based on whether its negative or
+   %positive
+   if mmDecisionSamplesList(mmDecisionCounter) > 0
+       mmDecisionList(mmDecisionCounter) = 1;
+   else 
+       mmDecisionList(mmDecisionCounter) = 0;
+   end
+   
+   if sample_plus_one > 0
+       decision_plus_one = 1;
+   else
+       decision_plus_one = 0;
+   end
+   if sample_minus_one > 0
+       decision_minus_one = 1;
+   else
+       decision_minus_one = 0;
+   end
+   %Calculate the timing error based on the M&M algorithm
+   timingError = (decision_minus_one - decision_plus_one)*mmDecisionSamplesList(mmDecisionCounter) + (sample_plus_one - sample_minus_one)* mmDecisionList(mmDecisionCounter);
+   %Samples are taken every 10 microseconds
+   readPosition = readPosition + 10 + timingError;
+   mmDecisionCounter = mmDecisionCounter + 1;
+end
+
+%Plot graph 
+xaxis = 1:1:length(mmDecisionSamplesList);
+plot(xaxis, mmDecisionSamplesList);
 
 %Open mmdecisions for writing  
 mmdecisions_write = fopen('mmdecisions', 'w');
-fprintf(mmdecisions_write,'%d',sampleList);
+fprintf(mmdecisions_write,'%d',mmDecisionList);
 fclose(mmdecisions_write);
