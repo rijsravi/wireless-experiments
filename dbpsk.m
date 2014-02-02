@@ -1,7 +1,7 @@
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%%%%%%%%%Module 1%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%Module 1%%%%%%%%%%%%%%%%%%%%
 %Removing the carrier frequency difference%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 rowCount = 1;
 d_BETA = 0.01;
 d_ALPHA = 0.1;
@@ -80,7 +80,7 @@ end
 %Calculate the timing error based on the M&M algorithm
 timingError = (dk_minus_one - dk_plus_one)*tempSamplesList(2) + (tempSamplesList(3) - tempSamplesList(1))*dk;
 %Indicates from which position we start reading the samples
-readPosition = 7;
+readPosition = 4;
 %Samples are taken every 10 microseconds
 readPosition = readPosition + 10 + timingError;
 
@@ -156,65 +156,27 @@ fclose(mmdecisions_write);
 %%%%%%%%%%%%%%%Module 3%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%Finding Data Packet%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% taking input from input file
-fid = fopen('mmdecisions', 'r');
-% this file stores the original data after extraction from raw bits
-fid2 = fopen('output.bin.txt','w');
-%this variable is used for swapping between bits
-temp = fscanf(fid,'%c',1);
+%Taking input from file
+fid = fopen('mmdecisions','r');
+a = fscanf(fid,'%c',1);
+temp = a;
+arr = [1:0];
 while ~feof(fid)
     b = fscanf(fid,'%c',1);
-    chk = fid;
     if feof(fid)
         break;
     end
     if temp == b
-        %if there is no change in  bit, write 0
-        fprintf(fid2,'%c','0');
+        arr(end+1) = 0;
     else
-        %if there is change in bit, write 1
-        fprintf(fid2,'%c','1');
+        arr(end+1) = 1;
     end
     temp = b;
 end
-fclose(fid);
-fclose(fid2);
-%array to store hexa value
+disp(arr(1:16));
 hexarray = hexToBinaryVector('0xA4F2');
-% hexa value is compared with the content of this file to get the begining
-% location
-fid2=fopen('output.bin.txt');
-%variable to keep track of bit location and its count
-tempcount=0;
-a=fscanf(fid2,'%c',1);
-intialcount=1;
-count=1;
-while ~feof(fid2)
-    tempcount=0;
-    for i= 1:16
-        a = str2num(a);
-        if a == hexarray(i)
-            tempcount=tempcount+1;
-            a=fscanf(fid,'%c',1);
-            if i ==16
-                disp('       result');
-                %this will print the intial position of packet
-                disp(intialcount);
-            end
-        else
-            tempcount=0;
-            fid=fid2;
-            a=fscanf(fid2,'%c',1);
-            count=count+1;
-            break;
-        end
-    end
-    if tempcount == 0
-       intialcount=count;
-    else
-        fid2=fid;
-        a=fscanf(fid2,'%c',1);
-        count=count+tempcount;
-        intialcount=count;
+for i=1:length(arr)-16
+    if arr(i:i+15) == hexarray        
+        disp(i);
     end
 end
