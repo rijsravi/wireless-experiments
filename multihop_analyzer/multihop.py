@@ -16,7 +16,9 @@ for file_name in foutput:
 				path_line = line[line.find(":")+1:]
 				src_node = path_line[1:path_line.find("-->")]
 				dst_node = path_line.split(">")[-1].strip()
-			if re.search("candidate",line) and re.search(path_line,line):
+			if src_node == dst_node:
+                                pass
+			elif re.search("candidate",line) and re.search(path_line,line):
 				metric_line = line[line.find("metric")+6:line.find(":")-1]
 				if float(metric_line) != 0:
 					metric_line = str(1/float(metric_line))
